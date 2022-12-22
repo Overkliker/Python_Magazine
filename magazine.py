@@ -10,19 +10,11 @@ db_sess = db_session.create_session()
 
 class User:
     def __init__(self, id, name, password, role):
-        self.id = id
+        self.id_use = int(id)
         self.name = name
         self.password = password
-        self.role = role
+        self.role = int(role)
 
-    def change_password(self):
-        new_pass = input("Введите новый пароль: ")
-        db_sess.query(User).filter(Users.id == self.id).update(
-            {Users.password: new_pass}, synchronize_session=False
-        )
-        db_sess.commit()
-
-class Admin(User):
     def products(self):
         prods = db_sess.query(Product)
         headers = []
@@ -33,28 +25,50 @@ class Admin(User):
             har = []
             for j in i.to_dict().keys():
                 head.append(j)
-                har.append(i[j])
+                har.append(i.to_dict()[j])
 
             headers = head
             haracteristics.append(har)
 
         print(tabulate(haracteristics, headers=headers))
 
-    def Add_User(self):
-        new_prod = Product()
-        new_prod.name = input()
-        new_prod.description = input()
-        new_prod.postav = input()
-        new_prod.price =  int(input())
-        new_prod.count =  int(input())
-
-        db_sess.add(new_prod)
-        db_sess.commit()
-        db_sess.rollback()
-    def delete(self, id):
-        db_sess.query(Product).filter(Product.id == id).delete(synchronize_session=False)
+    def change_password(self):
+        new_pass = input("Введите новый пароль: ")
+        db_sess.query(Users).filter(Users.id == self.id_use).update(
+            {Users.password: new_pass}, synchronize_session=False
+        )
         db_sess.commit()
         print("Готово")
+
+
+class Admin(User):
+
+    def add_product(self):
+        try:
+            new_prod = Product()
+            new_prod.name = input("ведите название нового продукта: ")
+            new_prod.description = input("Введите описание нового продукта: ")
+            new_prod.postav = input("Введите поставщика: ")
+            new_prod.price = int(input("Введите цену продукта: "))
+            new_prod.count = int(input("Введите количество продукта на складе: "))
+
+            db_sess.add(new_prod)
+            db_sess.commit()
+            db_sess.rollback()
+
+        except (Exception):
+            print("Что-то пошло не так")
+
+    def delete(self, id):
+        try:
+
+            db_sess.query(Product).filter(Product.id == id).delete(synchronize_session=False)
+            db_sess.commit()
+            print("Готово")
+
+        except (Exception):
+            print("Что-то пошло не так")
+
     def change_somthing_product(self, id):
         try:
             prod = db_sess.query(Product).filter(Product.id == id).one()
@@ -109,9 +123,9 @@ class Admin(User):
 
 
 def autorize():
-    name = input()
-    password = input()
-    re_passw = input()
+    name = input("Введите имя: ")
+    password = input("Введите пароль: ")
+    re_passw = input("Повторите пароль: ")
 
     if password == re_passw:
         try:
@@ -119,6 +133,7 @@ def autorize():
             user = db_sess.query(Users).filter(Users.password == password and Users.name == name).one()
 
             if user:
+                print('hh')
                 return (user, 1)
 
             else:
@@ -129,6 +144,29 @@ def autorize():
 
     else:
         return (0, 0)
+
+
+def reg():
+    name = input("Введите имя пользователя: ")
+    password = input("Введите пароль: ")
+
+    try:
+        user = db_sess.query(Users).filter(Users.password == password and Users.name == name).one()
+        if str(user.name) == name:
+            print("Такой пользователь уже существует, авторизуйтесь под ним")
+            return autorize()
+
+    except (Exception):
+        new_user = Users()
+        new_user.name = name
+        new_user.password = password
+        new_user.role = 0
+
+        db_sess.add(new_user)
+        db_sess.commit()
+        db_sess.rollback()
+
+        return (new_user, 1)
 
 
 def interface_admin(adm):
@@ -156,17 +194,52 @@ def interface_admin(adm):
             print("Похоже вы ввели не верный код")
 
 
-def main():
-    res_aut = autorize()
-    if res_aut[1] == 1:
-        if res_aut[0].role == 0:
-            user = User(res_aut[0].id, res_aut[0].name, res_aut[0].password, res_aut[0].role)
-        elif res_aut[0].role == 0:
-            admin = Admin(res_aut[0].id, res_aut[0].name, res_aut[0].password, res_aut[0].role)
-            interface_admin(admin)
+def interface_for_user(use):
+    while (True):
+        use.products()
+        print()
+        print("Введите что хотите сделать: 1 - изменить пароль: ")
+        inp = int(input("Введите: "))
+        try:
+            if inp == 1:
+                use.change_password()
+                print("nice")
 
-    else:
-        print("Переделывай")
+            else:
+                print("Такого нету")
+
+        except (Exception) as e:
+            print(e)
+
+
+def main():
+    print("Что вы хотите сделать: 1 - авторизоваться, 2 - зарегистрироваться")
+    inp = int(input())
+    if inp == 1:
+        res_aut = autorize()
+        if res_aut[1] == 1:
+            if res_aut[0].role == 0:
+                user = User(res_aut[0].id, res_aut[0].name, res_aut[0].password, res_aut[0].role)
+                interface_for_user(user)
+            elif res_aut[0].role == 1:
+                admin = Admin(res_aut[0].id, res_aut[0].name, res_aut[0].password, res_aut[0].role)
+                interface_admin(admin)
+
+        else:
+            print("Переделывай")
+
+    elif inp == 2:
+        res_reg = reg()
+        if res_reg[1] == 1:
+            if res_reg[0].role == 0:
+                user = User(res_reg[0].id, res_reg[0].name, res_reg[0].password, res_reg[0].role)
+                interface_for_user(user)
+            elif res_reg[0].role == 0:
+                admin = Admin(res_reg[0].id, res_reg[0].name, res_reg[0].password, res_reg[0].role)
+                interface_admin(admin)
+
+        else:
+            print("Переделывай")
 
 
 if __name__ == "__main__":
