@@ -4,6 +4,7 @@ from .db_session import SqlAlchemyBase
 from sqlalchemy_serializer import SerializerMixin
 
 
+#Создание таблицы товаров
 class Product(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'products'
 
